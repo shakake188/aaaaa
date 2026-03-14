@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>لوحة التحكم — حاسبة الشاحنات</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0a0e14;--surface:#131920;--card:#1a2230;--border:#2a3545;--accent:#f5a623;--green:#3ecf72;--red:#f85149;--blue:#60b0ff;--text:#e8eef5;--muted:#7a8a9a;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:16px;}
+.wrap{max-width:700px;margin:0 auto;}
+header{text-align:center;padding:24px 0 20px;}
+header h1{font-size:20px;font-weight:900;color:var(--accent);}
+header p{font-size:12px;color:var(--muted);}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:16px;}
+.card-title{font-size:14px;font-weight:800;color:var(--accent);margin-bottom:14px;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;}
+.field label{display:block;font-size:10px;font-weight:700;color:var(--muted);margin-bottom:4px;}
+input,select{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:13px;font-family:'Cairo',sans-serif;outline:none;}
+input:focus,select:focus{border-color:var(--accent);}
+.btn{padding:11px 18px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;border:none;font-family:'Cairo',sans-serif;display:inline-flex;align-items:center;gap:6px;}
+.btn-primary{background:linear-gradient(135deg,var(--accent),#e06b00);color:#000;width:100%;justify-content:center;}
+.btn-danger{background:rgba(248,81,73,.12);color:var(--red);border:1px solid rgba(248,81,73,.25);}
+.btn-edit{background:rgba(96,176,255,.12);color:var(--blue);border:1px solid rgba(96,176,255,.25);}
+.btn-sm{padding:5px 10px;font-size:11px;}
+.badge{display:inline-block;font-size:10px;padding:2px 8px;border-radius:20px;font-weight:700;}
+.badge-green{background:rgba(62,207,114,.15);color:var(--green);}
+.badge-red{background:rgba(248,81,73,.15);color:var(--red);}
+.badge-orange{background:rgba(245,166,35,.15);color:var(--accent);}
+table{width:100%;border-collapse:collapse;}
+th{font-size:11px;color:var(--muted);font-weight:700;padding:8px;text-align:right;border-bottom:1px solid var(--border);}
+td{font-size:12px;padding:10px 8px;border-bottom:1px solid rgba(42,53,69,.4);vertical-align:middle;}
+tr:hover td{background:rgba(245,166,35,.03);}
+.device-id{font-size:10px;color:var(--blue);font-family:monospace;word-break:break-all;}
+.stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;}
+.stat{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;}
+.sv{font-size:26px;font-weight:900;color:var(--accent);}
+.sl{font-size:11px;color:var(--muted);}
+.msg{padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:12px;display:none;}
+.msg-ok{background:rgba(62,207,114,.1);border:1px solid rgba(62,207,114,.3);color:var(--green);}
+.msg-err{background:rgba(248,81,73,.1);border:1px solid rgba(248,81,73,.3);color:var(--red);}
+.loading{text-align:center;padding:20px;color:var(--muted);}
+</style>
+</head>
+<body>
+
+<div id="login-screen" style="position:fixed;inset:0;background:#0a0e14;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:#131920;border:1px solid #2a3545;border-radius:20px;padding:32px 24px;width:100%;max-width:340px;text-align:center;">
+    <div style="font-size:50px;margin-bottom:12px">🔐</div>
+    <div style="font-size:20px;font-weight:900;color:#f5a623;margin-bottom:6px">لوحة التحكم</div>
+    <div style="font-size:12px;color:#7a8a9a;margin-bottom:24px">أدخل كلمة السر للدخول</div>
+    <input type="password" id="login-pass" placeholder="كلمة السر" 
+      style="width:100%;background:#0a0e14;border:2px solid #2a3545;border-radius:10px;padding:14px;color:#e8eef5;font-size:16px;font-family:'Cairo',sans-serif;text-align:center;outline:none;margin-bottom:12px;"
+      onkeydown="if(event.key==='Enter')doLogin()">
+    <div id="login-err" style="color:#f85149;font-size:12px;margin-bottom:10px;display:none">❌ كلمة السر غلط</div>
+    <button onclick="doLogin()" style="width:100%;padding:14px;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;border:none;font-family:'Cairo',sans-serif;background:linear-gradient(135deg,#f5a623,#e06b00);color:#000;">دخول</button>
+  </div>
+</div>
+
+<script>
+const ADMIN_PASS = 'truck2026'; // كلمة السر — غيّرها لما تريد
+function doLogin(){
+  const p = document.getElementById('login-pass').value;
+  if(p === ADMIN_PASS){
+    document.getElementById('login-screen').style.display='none';
+    sessionStorage.setItem('admin_auth','1');
+  } else {
+    document.getElementById('login-err').style.display='block';
+    document.getElementById('login-pass').value='';
+  }
+}
+// تحقق إذا مسجل دخول
+if(sessionStorage.getItem('admin_auth')==='1'){
+  document.addEventListener('DOMContentLoaded',()=>{
+    document.getElementById('login-screen').style.display='none';
+  });
+}
+</script>
+
+<div class="wrap">
+  <header>
+    <div style="font-size:40px">⚙️</div>
+    <h1>لوحة التحكم</h1>
+    <p>إدارة اشتراكات حاسبة الشاحنات</p>
+  </header>
+
+  <div id="msg-ok" class="msg msg-ok"></div>
+  <div id="msg-err" class="msg msg-err"></div>
+
+  <!-- الإحصاء -->
+  <div class="stat-row" id="stats">
+    <div class="stat"><div class="sv" id="s-total">-</div><div class="sl">إجمالي الزبائن</div></div>
+    <div class="stat"><div class="sv" id="s-active" style="color:var(--green)">-</div><div class="sl">نشطين</div></div>
+    <div class="stat"><div class="sv" id="s-expired" style="color:var(--red)">-</div><div class="sl">منتهي</div></div>
+  </div>
+
+  <!-- إضافة زبون -->
+  <div class="card">
+    <div class="card-title">➕ إضافة زبون جديد</div>
+    <div class="row2">
+      <div class="field"><label>اسم الزبون</label><input type="text" id="n-name" placeholder="محمد أحمد"></div>
+      <div class="field"><label>رقم الهاتف</label><input type="text" id="n-phone" placeholder="07xxxxxxxxx"></div>
+    </div>
+    <div class="field" style="margin-bottom:10px"><label>Device ID (يرسله الزبون)</label><input type="text" id="n-device" placeholder="DEV-XXXXXXXX-XXXXXXXX"></div>
+    <div class="row2">
+      <div class="field">
+        <label>مدة الاشتراك</label>
+        <select id="n-duration">
+          <option value="1">شهر واحد</option>
+          <option value="3">3 أشهر</option>
+          <option value="6">6 أشهر</option>
+          <option value="12">سنة كاملة</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>تاريخ الانتهاء</label>
+        <input type="date" id="n-expires" readonly style="color:var(--accent)">
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="addLicense()">💾 حفظ الاشتراك</button>
+  </div>
+
+  <!-- قائمة الزبائن -->
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div class="card-title" style="margin-bottom:0">👥 الزبائن</div>
+      <button class="btn btn-edit btn-sm" onclick="loadLicenses()">🔄 تحديث</button>
+    </div>
+    <div id="licenses-table"><div class="loading">⏳ جاري التحميل...</div></div>
+  </div>
+</div>
+
+<script>
+const SUPA_URL = 'https://uqzehewdsdknyddlyexg.supabase.co';
+const SUPA_KEY = 'sb_publishable_ai0ULBkZEpST3vDWx4NX7g_lKxhLxAt';
+
+const headers = {
+  'apikey': SUPA_KEY,
+  'Authorization': 'Bearer ' + SUPA_KEY,
+  'Content-Type': 'application/json',
+  'Prefer': 'return=representation'
+};
+
+function showMsg(type, text){
+  const el = document.getElementById('msg-'+type);
+  el.textContent = text;
+  el.style.display = 'block';
+  setTimeout(()=>el.style.display='none', 4000);
+}
+
+// حساب تاريخ الانتهاء تلقائي
+document.getElementById('n-duration').addEventListener('change', updateExpiry);
+function updateExpiry(){
+  const months = parseInt(document.getElementById('n-duration').value);
+  const d = new Date();
+  d.setMonth(d.getMonth() + months);
+  document.getElementById('n-expires').value = d.toISOString().split('T')[0];
+}
+updateExpiry();
+
+async function addLicense(){
+  const name   = document.getElementById('n-name').value.trim();
+  const phone  = document.getElementById('n-phone').value.trim();
+  const device = document.getElementById('n-device').value.trim();
+  const expires= document.getElementById('n-expires').value;
+  if(!name||!device||!expires){ showMsg('err','❌ أكمل جميع الحقول'); return; }
+
+  const res = await fetch(`${SUPA_URL}/rest/v1/licenses`, {
+    method:'POST',
+    headers,
+    body: JSON.stringify({name, phone, device_id:device, expires_at:expires, active:true})
+  });
+  if(res.ok){
+    showMsg('ok','✅ تم إضافة الزبون بنجاح');
+    ['n-name','n-phone','n-device'].forEach(i=>document.getElementById(i).value='');
+    updateExpiry();
+    loadLicenses();
+  } else {
+    const err = await res.json();
+    showMsg('err','❌ خطأ: '+(err.message||err.details||'تحقق من الـ Device ID'));
+  }
+}
+
+async function loadLicenses(){
+  const res = await fetch(`${SUPA_URL}/rest/v1/licenses?select=*&order=created_at.desc`, {headers});
+  const data = await res.json();
+  const now = new Date();
+
+  let total=0, active=0, expired=0;
+  data.forEach(r=>{
+    total++;
+    const exp = new Date(r.expires_at);
+    if(r.active && exp > now) active++;
+    else expired++;
+  });
+  document.getElementById('s-total').textContent   = total;
+  document.getElementById('s-active').textContent  = active;
+  document.getElementById('s-expired').textContent = expired;
+
+  if(!data.length){
+    document.getElementById('licenses-table').innerHTML='<div class="loading">ما في زبائن بعد</div>';
+    return;
+  }
+
+  document.getElementById('licenses-table').innerHTML = `
+    <div style="overflow-x:auto">
+    <table>
+      <thead><tr>
+        <th>الاسم</th><th>الهاتف</th><th>Device ID</th>
+        <th>ينتهي</th><th>الحالة</th><th>إجراء</th>
+      </tr></thead>
+      <tbody>
+      ${data.map(r=>{
+        const exp = new Date(r.expires_at);
+        const isActive = r.active && exp > now;
+        const daysLeft = Math.ceil((exp-now)/86400000);
+        const statusBadge = !r.active
+          ? '<span class="badge badge-red">موقوف</span>'
+          : exp <= now
+            ? '<span class="badge badge-red">منتهي</span>'
+            : daysLeft <= 7
+              ? `<span class="badge badge-orange">ينتهي بـ ${daysLeft} يوم</span>`
+              : '<span class="badge badge-green">نشط</span>';
+        return `<tr>
+          <td><strong>${r.name||'-'}</strong></td>
+          <td>${r.phone||'-'}</td>
+          <td><div class="device-id">${r.device_id}</div></td>
+          <td>${r.expires_at}</td>
+          <td>${statusBadge}</td>
+          <td style="display:flex;gap:6px;flex-wrap:wrap">
+            ${isActive
+              ? `<button class="btn btn-danger btn-sm" onclick="toggleLicense('${r.id}',false)">🔒 إيقاف</button>`
+              : `<button class="btn btn-edit btn-sm" onclick="toggleLicense('${r.id}',true)">✅ تفعيل</button>`
+            }
+            <button class="btn btn-edit btn-sm" onclick="renewLicense('${r.id}')">🔄 تجديد</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteLicense('${r.id}')">🗑️</button>
+          </td>
+        </tr>`;
+      }).join('')}
+      </tbody>
+    </table>
+    </div>`;
+}
+
+async function toggleLicense(id, active){
+  await fetch(`${SUPA_URL}/rest/v1/licenses?id=eq.${id}`, {
+    method:'PATCH', headers,
+    body: JSON.stringify({active})
+  });
+  showMsg('ok', active ? '✅ تم التفعيل' : '🔒 تم الإيقاف');
+  loadLicenses();
+}
+
+async function renewLicense(id){
+  const months = parseInt(prompt('كم شهر تجدد؟', '1'));
+  if(!months||isNaN(months)) return;
+  const d = new Date();
+  d.setMonth(d.getMonth()+months);
+  await fetch(`${SUPA_URL}/rest/v1/licenses?id=eq.${id}`, {
+    method:'PATCH', headers,
+    body: JSON.stringify({expires_at: d.toISOString().split('T')[0], active:true})
+  });
+  showMsg('ok','✅ تم التجديد لـ '+months+' شهر');
+  loadLicenses();
+}
+
+async function deleteLicense(id){
+  if(!confirm('تحذف هذا الزبون؟')) return;
+  await fetch(`${SUPA_URL}/rest/v1/licenses?id=eq.${id}`, {method:'DELETE', headers});
+  showMsg('ok','🗑️ تم الحذف');
+  loadLicenses();
+}
+
+loadLicenses();
+</script>
+</body>
+</html>
